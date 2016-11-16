@@ -1,0 +1,115 @@
+package com.neofect.devicescanner;
+
+import android.content.Context;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
+import android.os.Handler;
+import android.util.Pair;
+
+import com.neofect.devicescanner.DeviceScanner.Listener;
+import com.neofect.devicescanner.DeviceScanner.Scanner;
+
+import java.util.HashMap;
+import java.util.List;
+
+/**
+ * @author neo.kim@neofect.com
+ * @date Nov 16, 2016
+ */
+class UsbScanner implements Scanner {
+
+	private Context context;
+	private boolean stopped = false;
+	private boolean finished = false;
+	private List<Pair<Integer, Integer>> supportedProducts;
+
+	UsbScanner(Context context, List<Pair<Integer, Integer>> supportedProducts) {
+		this.context = context;
+		this.supportedProducts = supportedProducts;
+	}
+
+	@Override
+	public void scan(final Listener listener) {
+		final Handler handler = new Handler();
+		Runnable runnable = new Runnable() {
+			@Override
+			public void run() {
+				UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+				HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
+
+				for (UsbDevice device : devices.values()) {
+					if (stopped) {
+						break;
+					}
+					if (!isSupportedProduct(device)) {
+						continue;
+					}
+					String deviceName = device.getDeviceName();
+					String description = deviceName + " (";
+					description += "vendor=" + shortToHex((short) device.getVendorId());
+					description += ", product=" + shortToHex((short) device.getProductId());
+					description += ")";
+					final ScannedDevice scannedDevice = new UsbScannedDevice(deviceName, deviceName, description, device);
+					handler.post(new Runnable() {
+						@Override
+						public void run() {
+							listener.onDeviceScanned(scannedDevice);
+						}
+					});
+				}
+
+				handler.post(new Runnable() {
+					@Override
+					public void run() {
+						finished = true;
+						listener.onScanFinished();
+					}
+				});
+			}
+		};
+		new Thread(runnable).start();
+	}
+
+	@Override
+	public void stopScan() {
+		stopped = true;
+	}
+
+	@Override
+	public boolean isFinished() {
+		return finished;
+	}
+
+	private boolean isSupportedProduct(UsbDevice device) {
+		if (supportedProducts == null) {
+			return true;
+		}
+
+		int vendorId = device.getVendorId();
+		int productId = device.getProductId();
+		for (Pair<Integer, Integer> filter : supportedProducts) {
+			if (filter.first == vendorId) {
+				if (filter.second == null || filter.second == productId) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static String shortToHex(short value) {
+		String hex = "0x";
+		hex += byteToHex((byte) (value >> 8 & 0xff));
+		hex += byteToHex((byte) (value & 0xff));
+		return hex;
+	}
+
+	private static String byteToHex(byte value) {
+		String hex = Integer.toHexString(0xff & value).toUpperCase();
+		if (hex.length() == 1) {
+			hex = "0" + hex;
+		}
+		return hex;
+	}
+
+}
