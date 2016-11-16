@@ -16,14 +16,23 @@ import java.util.List;
  * @author neo.kim@neofect.com
  * @date Nov 16, 2016
  */
-class UsbScanner implements Scanner {
+public class UsbScanner implements Scanner {
+
+	public static class UsbScannedDevice extends ScannedDevice {
+		public UsbScannedDevice(String identifier, String name, String description, UsbDevice device) {
+			super(identifier, name, description, device);
+		}
+		public UsbDevice getUsbDevice() {
+			return (UsbDevice) getDevice();
+		}
+	}
 
 	private Context context;
 	private boolean stopped = false;
 	private boolean finished = false;
 	private List<Pair<Integer, Integer>> supportedProducts;
 
-	UsbScanner(Context context, List<Pair<Integer, Integer>> supportedProducts) {
+	public UsbScanner(Context context, List<Pair<Integer, Integer>> supportedProducts) {
 		this.context = context;
 		this.supportedProducts = supportedProducts;
 	}
@@ -40,8 +49,7 @@ class UsbScanner implements Scanner {
 				for (UsbDevice device : devices.values()) {
 					if (stopped) {
 						break;
-					}
-					if (!isSupportedProduct(device)) {
+					} else if (!isSupportedProduct(device)) {
 						continue;
 					}
 					String deviceName = device.getDeviceName();

@@ -19,9 +19,18 @@ import java.util.List;
  * @author neo.kim@neofect.com
  * @date Nov 16, 2016
  */
-class BluetoothScanner implements Scanner {
+public class BluetoothScanner implements Scanner {
 
 	private static final String LOG_TAG = BluetoothScanner.class.getSimpleName();
+
+	public static class BluetoothScannedDevice extends ScannedDevice {
+		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
+			super(identifier, name, description, device);
+		}
+		public BluetoothDevice getBluetoothDevice() {
+			return (BluetoothDevice) getDevice();
+		}
+	}
 
 	private Context context;
 	private Handler handler;
@@ -29,7 +38,7 @@ class BluetoothScanner implements Scanner {
 	private List<BluetoothDevice> scannedDevices;
 	private boolean finished = false;
 
-	BluetoothScanner(Context context) {
+	public BluetoothScanner(Context context) {
 		this.context = context;
 	}
 

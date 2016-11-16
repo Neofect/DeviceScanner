@@ -21,7 +21,7 @@ public class DeviceScanner {
 		void onScanFinished();
 	}
 
-	interface Scanner {
+	public interface Scanner {
 		void scan(Listener listener);
 		void stopScan();
 		boolean isFinished();
