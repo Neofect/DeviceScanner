@@ -39,6 +39,9 @@ public class UsbScanner implements Scanner {
 
 	@Override
 	public void scan(final Listener listener) {
+		stopped = false;
+		finished = false;
+
 		final Handler handler = new Handler();
 		Runnable runnable = new Runnable() {
 			@Override

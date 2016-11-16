@@ -45,6 +45,7 @@ public class BluetoothScanner implements Scanner {
 	@Override
 	public void scan(final Listener listener) {
 		this.listener = listener;
+		finished = false;
 		handler = new Handler();
 		scannedDevices = new ArrayList<>();
 
