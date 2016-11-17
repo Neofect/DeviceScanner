@@ -3,6 +3,7 @@ package com.neofect.devicescanner;
 import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Handler;
 import android.util.Pair;
 
@@ -55,12 +56,23 @@ public class UsbScanner implements Scanner {
 					} else if (!isSupportedProduct(device)) {
 						continue;
 					}
-					String deviceName = device.getDeviceName();
-					String description = deviceName + " (";
-					description += "vendor=" + shortToHex((short) device.getVendorId());
-					description += ", product=" + shortToHex((short) device.getProductId());
-					description += ")";
-					final ScannedDevice scannedDevice = new UsbScannedDevice(deviceName, deviceName, description, device);
+					String identifier = device.getDeviceName();
+					String name;
+					String description;
+
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+						name = device.getProductName();
+						description = name + "(";
+						description += "name=" + device.getProductName();
+						description += ")";
+					} else {
+						name = identifier;
+						description = name + " (";
+						description += "vendor=" + shortToHex((short) device.getVendorId());
+						description += ", product=" + shortToHex((short) device.getProductId());
+						description += ")";
+					}
+					final ScannedDevice scannedDevice = new UsbScannedDevice(identifier, name, description, device);
 					handler.post(new Runnable() {
 						@Override
 						public void run() {
