@@ -48,13 +48,13 @@ public class BluetoothScanner implements Scanner {
 		finished = false;
 		handler = new Handler();
 		scannedDevices = new ArrayList<>();
+		registerReceiver();
 
 		if (!checkBluetoothAvailability()) {
 			finish();
 			return;
 		}
 
-		registerReceiver();
 
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 		if (adapter.isDiscovering()) {
