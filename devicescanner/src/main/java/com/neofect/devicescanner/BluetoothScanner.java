@@ -87,7 +87,7 @@ public class BluetoothScanner implements Scanner {
 	@Override
 	public void stopScan() {
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		if (adapter.isDiscovering()) {
+		if (adapter != null && adapter.isDiscovering()) {
 			adapter.cancelDiscovery();
 		}
 	}
