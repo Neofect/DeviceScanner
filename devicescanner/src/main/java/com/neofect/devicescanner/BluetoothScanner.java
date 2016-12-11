@@ -43,7 +43,7 @@ public class BluetoothScanner implements Scanner {
 	}
 
 	@Override
-	public void scan(final Listener listener) {
+	public void start(final Listener listener) {
 		this.listener = listener;
 		finished = false;
 		handler = new Handler();
@@ -85,7 +85,7 @@ public class BluetoothScanner implements Scanner {
 	}
 
 	@Override
-	public void stopScan() {
+	public void stop() {
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 		if (adapter != null && adapter.isDiscovering()) {
 			adapter.cancelDiscovery();
