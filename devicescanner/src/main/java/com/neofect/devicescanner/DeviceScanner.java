@@ -56,18 +56,30 @@ public class DeviceScanner {
 		}
 
 	}
+
 	private DeviceScannerBuilder builder;
+	private boolean scanning = false;
 
 	private DeviceScanner(DeviceScannerBuilder builder) {
 		this.builder = builder;
 	}
 
-	public void scan() {
+	public boolean isScanning() {
+		return scanning;
+	}
+
+	public boolean scan() {
+		if (scanning) {
+			Log.w(LOG_TAG, "scan() Scanning is in progress. Need to call stopScan() first and wait for onScanFinished() event.");
+			return false;
+		}
 		if (builder.listener == null) {
 			Log.e(LOG_TAG, "Listener is not set!");
-			return;
+			return false;
 		}
+		scanning = true;
 		startScanners();
+		return true;
 	}
 
 	public void stopScan() {
@@ -89,6 +101,7 @@ public class DeviceScanner {
 							return;
 						}
 					}
+					scanning = false;
 					builder.listener.onScanFinished();
 				}
 
