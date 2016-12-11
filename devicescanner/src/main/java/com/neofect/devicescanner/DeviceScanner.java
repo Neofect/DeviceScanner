@@ -22,8 +22,8 @@ public class DeviceScanner {
 	}
 
 	public interface Scanner {
-		void scan(Listener listener);
-		void stopScan();
+		void start(Listener listener);
+		void stop();
 		boolean isFinished();
 	}
 
@@ -68,9 +68,9 @@ public class DeviceScanner {
 		return scanning;
 	}
 
-	public boolean scan() {
+	public boolean start() {
 		if (scanning) {
-			Log.w(LOG_TAG, "scan() Scanning is in progress. Need to call stopScan() first and wait for onScanFinished() event.");
+			Log.w(LOG_TAG, "start() Scanning is in progress. Need to call stop() first and wait for onScanFinished() event.");
 			return false;
 		}
 		if (builder.listener == null) {
@@ -82,15 +82,15 @@ public class DeviceScanner {
 		return true;
 	}
 
-	public void stopScan() {
+	public void stop() {
 		for (Scanner scanner : builder.scanners) {
-			scanner.stopScan();
+			scanner.stop();
 		}
 	}
 
 	private void startScanners() {
 		for (Scanner scanner : builder.scanners) {
-			scanner.scan(new Listener() {
+			scanner.start(new Listener() {
 				public void onDeviceScanned(ScannedDevice device) {
 					builder.listener.onDeviceScanned(device);
 				}

@@ -39,7 +39,7 @@ public class UsbScanner implements Scanner {
 	}
 
 	@Override
-	public void scan(final Listener listener) {
+	public void start(final Listener listener) {
 		stopped = false;
 		finished = false;
 
@@ -94,7 +94,7 @@ public class UsbScanner implements Scanner {
 	}
 
 	@Override
-	public void stopScan() {
+	public void stop() {
 		stopped = true;
 	}
 
