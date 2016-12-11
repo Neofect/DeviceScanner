@@ -55,7 +55,6 @@ public class BluetoothScanner implements Scanner {
 			return;
 		}
 
-
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 		if (adapter.isDiscovering()) {
 			adapter.cancelDiscovery();
