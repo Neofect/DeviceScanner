@@ -37,6 +37,7 @@ public class BluetoothScanner implements Scanner {
 	private Listener listener;
 	private List<BluetoothDevice> scannedDevices;
 	private boolean finished = false;
+	private boolean receiverRegistered = false;
 
 	public BluetoothScanner(Context context) {
 		this.context = context;
@@ -48,17 +49,15 @@ public class BluetoothScanner implements Scanner {
 		finished = false;
 		handler = new Handler();
 		scannedDevices = new ArrayList<>();
-		registerReceiver();
 
 		if (!checkBluetoothAvailability()) {
 			finish();
 			return;
 		}
 
+		registerReceiver();
+
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		if (adapter.isDiscovering()) {
-			adapter.cancelDiscovery();
-		}
 		adapter.startDiscovery();
 	}
 
@@ -80,7 +79,8 @@ public class BluetoothScanner implements Scanner {
 				}
 			});
 			return false;
-		} return true;
+		}
+		return true;
 	}
 
 	@Override
@@ -97,7 +97,10 @@ public class BluetoothScanner implements Scanner {
 	}
 
 	private void finish() {
-		context.unregisterReceiver(discoveryReceiver);
+		if (receiverRegistered) {
+			context.unregisterReceiver(discoveryReceiver);
+			receiverRegistered = false;
+		}
 		handler.post(new Runnable() {
 			@Override
 			public void run() {
@@ -108,12 +111,17 @@ public class BluetoothScanner implements Scanner {
 	}
 
 	private void registerReceiver() {
+		if (receiverRegistered) {
+			Log.w(LOG_TAG, "registerReceiver() Already registered.");
+			return;
+		}
 		// Register a receiver for broadcasts
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(BluetoothDevice.ACTION_FOUND);
 		filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED);
 		filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
 		context.registerReceiver(discoveryReceiver, filter);
+		receiverRegistered = true;
 	}
 
 	private final BroadcastReceiver discoveryReceiver = new BroadcastReceiver() {
