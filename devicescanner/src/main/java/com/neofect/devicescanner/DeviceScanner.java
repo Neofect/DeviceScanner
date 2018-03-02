@@ -4,6 +4,9 @@ import android.content.Context;
 import android.util.Log;
 import android.util.Pair;
 
+import com.neofect.devicescanner.bluetooth.BluetoothScanner;
+import com.neofect.devicescanner.usb.UsbScanner;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +16,7 @@ import java.util.List;
  */
 public class DeviceScanner {
 
-	private static final String LOG_TAG = DeviceScanner.class.getSimpleName();
+	private static final String LOG_TAG = "DeviceScanner";
 
 	public interface Listener {
 		void onDeviceScanned(ScannedDevice device);

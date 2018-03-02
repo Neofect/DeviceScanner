@@ -1,5 +1,6 @@
-package com.neofect.devicescanner;
+package com.neofect.devicescanner.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -11,6 +12,7 @@ import android.util.Log;
 
 import com.neofect.devicescanner.DeviceScanner.Listener;
 import com.neofect.devicescanner.DeviceScanner.Scanner;
+import com.neofect.devicescanner.ScannedDevice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +23,7 @@ import java.util.List;
  */
 public class BluetoothScanner implements Scanner {
 
-	private static final String LOG_TAG = BluetoothScanner.class.getSimpleName();
+	private static final String LOG_TAG = "BluetoothScanner";
 
 	public static class BluetoothScannedDevice extends ScannedDevice {
 		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
@@ -40,7 +42,7 @@ public class BluetoothScanner implements Scanner {
 	private boolean receiverRegistered = false;
 
 	public BluetoothScanner(Context context) {
-		this.context = context;
+		this.context = context.getApplicationContext();
 	}
 
 	@Override
@@ -56,33 +58,28 @@ public class BluetoothScanner implements Scanner {
 		}
 
 		registerReceiver();
-
-		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		adapter.startDiscovery();
+		startBluetoothDiscovery();
 	}
 
+	@SuppressLint("MissingPermission")
+	private void startBluetoothDiscovery() {
+		BluetoothAdapter.getDefaultAdapter().startDiscovery();
+	}
+
+	@SuppressLint("MissingPermission")
 	private boolean checkBluetoothAvailability() {
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 		if (adapter == null) {
-			handler.post(new Runnable() {
-				@Override
-				public void run() {
-					listener.onExceptionRaised(new Exception("Bluetooth is not supported by the device!"));
-				}
-			});
+			handler.post(() -> listener.onExceptionRaised(new Exception("Bluetooth is not supported by the device!")));
 			return false;
 		} else if (!adapter.isEnabled()) {
-			handler.post(new Runnable() {
-				@Override
-				public void run() {
-					listener.onExceptionRaised(new Exception("Bluetooth adapter is not enabled!"));
-				}
-			});
+			handler.post(() -> listener.onExceptionRaised(new Exception("Bluetooth adapter is not enabled!")));
 			return false;
 		}
 		return true;
 	}
 
+	@SuppressLint("MissingPermission")
 	@Override
 	public void stop() {
 		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -101,12 +98,9 @@ public class BluetoothScanner implements Scanner {
 			context.unregisterReceiver(discoveryReceiver);
 			receiverRegistered = false;
 		}
-		handler.post(new Runnable() {
-			@Override
-			public void run() {
-				finished = true;
-				listener.onScanFinished();
-			}
+		handler.post(() -> {
+			finished = true;
+			listener.onScanFinished();
 		});
 	}
 
@@ -131,7 +125,7 @@ public class BluetoothScanner implements Scanner {
 			Log.d(LOG_TAG, "Bluetooth broadcast action received. action=" + action);
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				if (device.getName() != null) {
+				if (getDeviceName(device) != null) {
 					onDeviceDiscovered(device);
 				} else {
 					Log.d(LOG_TAG, "The name of bluetooth device is null! device=" + device);
@@ -146,7 +140,8 @@ public class BluetoothScanner implements Scanner {
 	};
 
 	private void onDeviceDiscovered(final BluetoothDevice device) {
-		Log.i(LOG_TAG, "Bluetooth device is discovered. name=" + device.getName() + ", address=" + device.getAddress());
+		String deviceName = getDeviceName(device);
+		Log.i(LOG_TAG, "Bluetooth device is discovered. name=" + deviceName + ", address=" + device.getAddress());
 
 		// Check duplicates
 		if (scannedDevices.contains(device)) {
@@ -154,19 +149,16 @@ public class BluetoothScanner implements Scanner {
 		}
 		scannedDevices.add(device);
 
-		handler.post(new Runnable() {
-			@Override
-			public void run() {
-				String description = device.getName() + " (" + device.getAddress() + ")";
-				final ScannedDevice scannedDevice = new BluetoothScannedDevice(device.getAddress(), device.getName(), description, device);
-				handler.post(new Runnable() {
-					@Override
-					public void run() {
-						listener.onDeviceScanned(scannedDevice);
-					}
-				});
-			}
+		handler.post(() -> {
+			String description = deviceName + " (" + device.getAddress() + ")";
+			final ScannedDevice scannedDevice = new BluetoothScannedDevice(device.getAddress(), deviceName, description, device);
+			listener.onDeviceScanned(scannedDevice);
 		});
+	}
+
+	@SuppressLint("MissingPermission")
+	private String getDeviceName(BluetoothDevice device) {
+		return device.getName();
 	}
 
 }
