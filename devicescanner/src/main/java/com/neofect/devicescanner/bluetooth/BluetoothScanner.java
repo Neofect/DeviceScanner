@@ -26,11 +26,27 @@ public class BluetoothScanner implements Scanner {
 	private static final String LOG_TAG = "BluetoothScanner";
 
 	public static class BluetoothScannedDevice extends ScannedDevice {
+		private boolean ble;
+		private int rssi;
+
 		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
+			this(identifier, name, description, device, false, -1);
+		}
+		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device, boolean ble, int rssi) {
 			super(identifier, name, description, device);
+			this.ble = ble;
+			this.rssi = rssi;
 		}
 		public BluetoothDevice getBluetoothDevice() {
 			return (BluetoothDevice) getDevice();
+		}
+
+		public int getRssi() {
+			return rssi;
+		}
+
+		public boolean isBle() {
+			return ble;
 		}
 	}
 
@@ -52,8 +68,9 @@ public class BluetoothScanner implements Scanner {
 		handler = new Handler();
 		scannedDevices = new ArrayList<>();
 
-		if (!checkBluetoothAvailability()) {
-			finish();
+		Exception unavailableReason = CommonLogic.checkBluetoothAvailability();
+		if (unavailableReason != null) {
+			finish(unavailableReason);
 			return;
 		}
 
@@ -64,19 +81,6 @@ public class BluetoothScanner implements Scanner {
 	@SuppressLint("MissingPermission")
 	private void startBluetoothDiscovery() {
 		BluetoothAdapter.getDefaultAdapter().startDiscovery();
-	}
-
-	@SuppressLint("MissingPermission")
-	private boolean checkBluetoothAvailability() {
-		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		if (adapter == null) {
-			handler.post(() -> listener.onExceptionRaised(new Exception("Bluetooth is not supported by the device!")));
-			return false;
-		} else if (!adapter.isEnabled()) {
-			handler.post(() -> listener.onExceptionRaised(new Exception("Bluetooth adapter is not enabled!")));
-			return false;
-		}
-		return true;
 	}
 
 	@SuppressLint("MissingPermission")
@@ -93,14 +97,19 @@ public class BluetoothScanner implements Scanner {
 		return finished;
 	}
 
-	private void finish() {
+	private void finish(Exception exception) {
 		if (receiverRegistered) {
 			context.unregisterReceiver(discoveryReceiver);
 			receiverRegistered = false;
 		}
+
 		handler.post(() -> {
 			finished = true;
-			listener.onScanFinished();
+			if (exception == null) {
+				listener.onScanFinished();
+			} else {
+				listener.onExceptionRaised(new Exception("Exception from BluetoothScanner", exception));
+			}
 		});
 	}
 
@@ -134,7 +143,7 @@ public class BluetoothScanner implements Scanner {
 				BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				onDeviceDiscovered(bluetoothDevice);
 			} else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-				finish();
+				finish(null);
 			}
 		}
 	};
