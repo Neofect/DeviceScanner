@@ -1,4 +1,4 @@
-package com.neofect.devicescanner;
+package com.neofect.devicescanner.usb;
 
 import android.content.Context;
 import android.hardware.usb.UsbDevice;
@@ -9,6 +9,7 @@ import android.util.Pair;
 
 import com.neofect.devicescanner.DeviceScanner.Listener;
 import com.neofect.devicescanner.DeviceScanner.Scanner;
+import com.neofect.devicescanner.ScannedDevice;
 
 import java.util.HashMap;
 import java.util.List;
@@ -44,51 +45,40 @@ public class UsbScanner implements Scanner {
 		finished = false;
 
 		final Handler handler = new Handler();
-		Runnable runnable = new Runnable() {
-			@Override
-			public void run() {
-				UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
-				HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
+		Runnable runnable = () -> {
+			UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+			HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
 
-				for (UsbDevice device : devices.values()) {
-					if (stopped) {
-						break;
-					} else if (!isSupportedProduct(device)) {
-						continue;
-					}
-					String identifier = device.getDeviceName();
-					String name;
-					String description;
-
-					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-						name = device.getProductName();
-						description = name + "(";
-						description += "name=" + device.getProductName();
-						description += ")";
-					} else {
-						name = identifier;
-						description = name + " (";
-						description += "vendor=" + shortToHex((short) device.getVendorId());
-						description += ", product=" + shortToHex((short) device.getProductId());
-						description += ")";
-					}
-					final ScannedDevice scannedDevice = new UsbScannedDevice(identifier, name, description, device);
-					handler.post(new Runnable() {
-						@Override
-						public void run() {
-							listener.onDeviceScanned(scannedDevice);
-						}
-					});
+			for (UsbDevice device : devices.values()) {
+				if (stopped) {
+					break;
+				} else if (!isSupportedProduct(device)) {
+					continue;
 				}
+				String identifier = device.getDeviceName();
+				String name;
+				String description;
 
-				handler.post(new Runnable() {
-					@Override
-					public void run() {
-						finished = true;
-						listener.onScanFinished();
-					}
-				});
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+					name = device.getProductName();
+					description = name + "(";
+					description += "name=" + device.getProductName();
+					description += ")";
+				} else {
+					name = identifier;
+					description = name + " (";
+					description += "vendor=" + shortToHex((short) device.getVendorId());
+					description += ", product=" + shortToHex((short) device.getProductId());
+					description += ")";
+				}
+				final ScannedDevice scannedDevice = new UsbScannedDevice(identifier, name, description, device);
+				handler.post(()-> listener.onDeviceScanned(scannedDevice));
 			}
+
+			handler.post(() -> {
+				finished = true;
+				listener.onScanFinished();
+			});
 		};
 		new Thread(runnable).start();
 	}

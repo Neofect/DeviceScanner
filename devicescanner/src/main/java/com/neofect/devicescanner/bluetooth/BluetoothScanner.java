@@ -1,5 +1,6 @@
-package com.neofect.devicescanner;
+package com.neofect.devicescanner.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -11,6 +12,7 @@ import android.util.Log;
 
 import com.neofect.devicescanner.DeviceScanner.Listener;
 import com.neofect.devicescanner.DeviceScanner.Scanner;
+import com.neofect.devicescanner.ScannedDevice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,16 +21,27 @@ import java.util.List;
  * @author neo.kim@neofect.com
  * @date Nov 16, 2016
  */
+@SuppressLint("MissingPermission")
 public class BluetoothScanner implements Scanner {
 
-	private static final String LOG_TAG = BluetoothScanner.class.getSimpleName();
+	private static final String LOG_TAG = "BluetoothScanner";
 
 	public static class BluetoothScannedDevice extends ScannedDevice {
+		private int rssi;
+
 		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
+			this(identifier, name, description, device, -1);
+		}
+		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device, int rssi) {
 			super(identifier, name, description, device);
+			this.rssi = rssi;
 		}
 		public BluetoothDevice getBluetoothDevice() {
 			return (BluetoothDevice) getDevice();
+		}
+
+		public int getRssi() {
+			return rssi;
 		}
 	}
 
@@ -40,7 +53,7 @@ public class BluetoothScanner implements Scanner {
 	private boolean receiverRegistered = false;
 
 	public BluetoothScanner(Context context) {
-		this.context = context;
+		this.context = context.getApplicationContext();
 	}
 
 	@Override
@@ -50,37 +63,15 @@ public class BluetoothScanner implements Scanner {
 		handler = new Handler();
 		scannedDevices = new ArrayList<>();
 
-		if (!checkBluetoothAvailability()) {
-			finish();
+		Exception unavailableReason = checkBluetoothAvailability();
+		if (unavailableReason != null) {
+			finish(unavailableReason);
 			return;
 		}
 
 		registerReceiver();
 
-		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		adapter.startDiscovery();
-	}
-
-	private boolean checkBluetoothAvailability() {
-		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-		if (adapter == null) {
-			handler.post(new Runnable() {
-				@Override
-				public void run() {
-					listener.onExceptionRaised(new Exception("Bluetooth is not supported by the device!"));
-				}
-			});
-			return false;
-		} else if (!adapter.isEnabled()) {
-			handler.post(new Runnable() {
-				@Override
-				public void run() {
-					listener.onExceptionRaised(new Exception("Bluetooth adapter is not enabled!"));
-				}
-			});
-			return false;
-		}
-		return true;
+		BluetoothAdapter.getDefaultAdapter().startDiscovery();
 	}
 
 	@Override
@@ -96,23 +87,25 @@ public class BluetoothScanner implements Scanner {
 		return finished;
 	}
 
-	private void finish() {
+	private void finish(Exception exception) {
 		if (receiverRegistered) {
 			context.unregisterReceiver(discoveryReceiver);
 			receiverRegistered = false;
 		}
-		handler.post(new Runnable() {
-			@Override
-			public void run() {
-				finished = true;
+
+		handler.post(() -> {
+			finished = true;
+			if (exception == null) {
 				listener.onScanFinished();
+			} else {
+				listener.onExceptionRaised(new Exception("Exception from BluetoothScanner", exception));
 			}
 		});
 	}
 
 	private void registerReceiver() {
 		if (receiverRegistered) {
-			Log.w(LOG_TAG, "registerReceiver() Already registered.");
+			Log.w(LOG_TAG, "registerReceiver: Already registered.");
 			return;
 		}
 		// Register a receiver for broadcasts
@@ -131,22 +124,19 @@ public class BluetoothScanner implements Scanner {
 			Log.d(LOG_TAG, "Bluetooth broadcast action received. action=" + action);
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				if (device.getName() != null) {
-					onDeviceDiscovered(device);
-				} else {
-					Log.d(LOG_TAG, "The name of bluetooth device is null! device=" + device);
-				}
+				onDeviceDiscovered(device);
 			} else if (BluetoothDevice.ACTION_NAME_CHANGED.equals(action)) {
 				BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				onDeviceDiscovered(bluetoothDevice);
 			} else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-				finish();
+				finish(null);
 			}
 		}
 	};
 
 	private void onDeviceDiscovered(final BluetoothDevice device) {
-		Log.i(LOG_TAG, "Bluetooth device is discovered. name=" + device.getName() + ", address=" + device.getAddress());
+		String deviceName = device.getName();
+		Log.i(LOG_TAG, "Bluetooth device is discovered. name=" + deviceName + ", address=" + device.getAddress());
 
 		// Check duplicates
 		if (scannedDevices.contains(device)) {
@@ -154,19 +144,21 @@ public class BluetoothScanner implements Scanner {
 		}
 		scannedDevices.add(device);
 
-		handler.post(new Runnable() {
-			@Override
-			public void run() {
-				String description = device.getName() + " (" + device.getAddress() + ")";
-				final ScannedDevice scannedDevice = new BluetoothScannedDevice(device.getAddress(), device.getName(), description, device);
-				handler.post(new Runnable() {
-					@Override
-					public void run() {
-						listener.onDeviceScanned(scannedDevice);
-					}
-				});
-			}
+		handler.post(() -> {
+			String description = deviceName + " (" + device.getAddress() + ")";
+			final ScannedDevice scannedDevice = new BluetoothScannedDevice(device.getAddress(), deviceName, description, device);
+			listener.onDeviceScanned(scannedDevice);
 		});
+	}
+
+	static Exception checkBluetoothAvailability() {
+		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+		if (adapter == null) {
+			return new Exception("Bluetooth is not supported by the device!");
+		} else if (!adapter.isEnabled()) {
+			return new Exception("Bluetooth adapter is not enabled!");
+		}
+		return null;
 	}
 
 }
