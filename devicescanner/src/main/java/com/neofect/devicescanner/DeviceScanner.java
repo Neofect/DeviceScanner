@@ -1,6 +1,10 @@
 package com.neofect.devicescanner;
 
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 import android.util.Pair;
 
@@ -53,8 +57,14 @@ public class DeviceScanner {
 			return this;
 		}
 
+		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 		public DeviceScannerBuilder addBluetoothLe() {
-			scanners.add(new BluetoothLeScanner(context));
+			return addBluetoothLe(null, null);
+		}
+
+		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+		public DeviceScannerBuilder addBluetoothLe(List<ScanFilter> scanFilters, ScanSettings scanSettings) {
+			scanners.add(new BluetoothLeScanner(context, scanFilters, scanSettings));
 			return this;
 		}
 
