@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.neofect.devicescanner.DeviceScanner.Listener;
@@ -15,7 +16,9 @@ import com.neofect.devicescanner.DeviceScanner.Scanner;
 import com.neofect.devicescanner.ScannedDevice;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author neo.kim@neofect.com
@@ -29,11 +32,11 @@ public class BluetoothScanner implements Scanner {
 	public static class BluetoothScannedDevice extends ScannedDevice {
 		private int rssi;
 
-		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
-			this(identifier, name, description, device, -1);
+		public BluetoothScannedDevice(BluetoothDevice device) {
+			this(device, -1);
 		}
-		public BluetoothScannedDevice(String identifier, String name, String description, BluetoothDevice device, int rssi) {
-			super(identifier, name, description, device);
+		public BluetoothScannedDevice(BluetoothDevice device, int rssi) {
+			super(device.getAddress(), device.getName(), null, device);
 			this.rssi = rssi;
 		}
 		public BluetoothDevice getBluetoothDevice() {
@@ -48,7 +51,7 @@ public class BluetoothScanner implements Scanner {
 	private Context context;
 	private Handler handler;
 	private Listener listener;
-	private List<BluetoothDevice> scannedDevices;
+	private Map<BluetoothDevice, ScannedDevice> scannedDevices;
 	private boolean finished = false;
 	private boolean receiverRegistered = false;
 
@@ -61,7 +64,7 @@ public class BluetoothScanner implements Scanner {
 		this.listener = listener;
 		finished = false;
 		handler = new Handler();
-		scannedDevices = new ArrayList<>();
+		scannedDevices = new LinkedHashMap<>();
 
 		Exception unavailableReason = checkBluetoothAvailability();
 		if (unavailableReason != null) {
@@ -70,6 +73,7 @@ public class BluetoothScanner implements Scanner {
 		}
 
 		registerReceiver();
+
 
 		BluetoothAdapter.getDefaultAdapter().startDiscovery();
 	}
@@ -124,31 +128,44 @@ public class BluetoothScanner implements Scanner {
 			Log.d(LOG_TAG, "Bluetooth broadcast action received. action=" + action);
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				onDeviceDiscovered(device);
+				onDeviceFound(device);
 			} else if (BluetoothDevice.ACTION_NAME_CHANGED.equals(action)) {
-				BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				onDeviceDiscovered(bluetoothDevice);
+				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+				onDeviceNameChanged(device);
 			} else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
 				finish(null);
 			}
 		}
 	};
 
-	private void onDeviceDiscovered(final BluetoothDevice device) {
+	@NonNull
+	private String createDescription(BluetoothDevice device) {
+		return device.getName() + " (" + device.getAddress() + ")";
+	}
+
+	private void onDeviceFound(final BluetoothDevice device) {
 		String deviceName = device.getName();
-		Log.i(LOG_TAG, "Bluetooth device is discovered. name=" + deviceName + ", address=" + device.getAddress());
+		Log.i(LOG_TAG, "Bluetooth device is found. name=" + deviceName + ", address=" + device.getAddress());
+		ScannedDevice scannedDevice = addOrUpdateScannedDevice(device);
+		handler.post(() -> listener.onDeviceScanned(scannedDevice));
+	}
 
-		// Check duplicates
-		if (scannedDevices.contains(device)) {
-			return;
+	private void onDeviceNameChanged(final BluetoothDevice device) {
+		String deviceName = device.getName();
+		Log.i(LOG_TAG, "Bluetooth device name changed. name=" + deviceName + ", address=" + device.getAddress());
+		ScannedDevice scannedDevice = addOrUpdateScannedDevice(device);
+		handler.post(() -> listener.onDeviceChanged(scannedDevice));
+	}
+
+	private ScannedDevice addOrUpdateScannedDevice(BluetoothDevice device) {
+		ScannedDevice scannedDevice = scannedDevices.get(device);
+		if (scannedDevice == null) {
+			scannedDevice = new BluetoothScannedDevice(device);
+			scannedDevices.put(device, scannedDevice);
 		}
-		scannedDevices.add(device);
-
-		handler.post(() -> {
-			String description = deviceName + " (" + device.getAddress() + ")";
-			final ScannedDevice scannedDevice = new BluetoothScannedDevice(device.getAddress(), deviceName, description, device);
-			listener.onDeviceScanned(scannedDevice);
-		});
+		scannedDevice.setName(device.getName());
+		scannedDevice.setDescription(createDescription(device));
+		return scannedDevice;
 	}
 
 	static Exception checkBluetoothAvailability() {

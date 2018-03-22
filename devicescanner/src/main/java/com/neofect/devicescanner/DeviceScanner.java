@@ -25,6 +25,7 @@ public class DeviceScanner {
 
 	public interface Listener {
 		void onDeviceScanned(ScannedDevice device);
+		void onDeviceChanged(ScannedDevice device);
 		void onExceptionRaised(Exception exception);
 		void onScanFinished();
 	}
@@ -35,40 +36,37 @@ public class DeviceScanner {
 		boolean isFinished();
 	}
 
-	/**
-	 * Do not reuse this builder.
-	 */
-	public static class DeviceScannerBuilder {
+	public static class Builder {
 		private Context context;
 		private Listener listener;
 		private List<Scanner> scanners = new ArrayList<>();
 
-		public DeviceScannerBuilder(Context context) {
+		public Builder(Context context) {
 			this.context = context.getApplicationContext();
 		}
 
-		public DeviceScannerBuilder listen(Listener listener) {
+		public Builder listen(Listener listener) {
 			this.listener = listener;
 			return this;
 		}
 
-		public DeviceScannerBuilder addBluetooth() {
+		public Builder addBluetooth() {
 			scanners.add(new BluetoothScanner(context));
 			return this;
 		}
 
 		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-		public DeviceScannerBuilder addBluetoothLe() {
+		public Builder addBluetoothLe() {
 			return addBluetoothLe(null, null);
 		}
 
 		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-		public DeviceScannerBuilder addBluetoothLe(List<ScanFilter> scanFilters, ScanSettings scanSettings) {
+		public Builder addBluetoothLe(List<ScanFilter> scanFilters, ScanSettings scanSettings) {
 			scanners.add(new BluetoothLeScanner(context, scanFilters, scanSettings));
 			return this;
 		}
 
-		public DeviceScannerBuilder addUsb(List<Pair<Integer, Integer>> supportedProducts) {
+		public Builder addUsb(List<Pair<Integer, Integer>> supportedProducts) {
 			scanners.add(new UsbScanner(context, supportedProducts));
 			return this;
 		}
@@ -118,6 +116,10 @@ public class DeviceScanner {
 			scanner.start(new Listener() {
 				public void onDeviceScanned(ScannedDevice device) {
 					listener.onDeviceScanned(device);
+				}
+
+				public void onDeviceChanged(ScannedDevice device) {
+					listener.onDeviceChanged(device);
 				}
 
 				public void onScanFinished() {
