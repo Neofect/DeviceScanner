@@ -3,6 +3,7 @@ package com.neofect.devicescanner.bluetooth;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -33,7 +34,7 @@ public class BluetoothScanner implements Scanner {
 		private int rssi;
 
 		public BluetoothScannedDevice(BluetoothDevice device) {
-			this(device, -1);
+			this(device, 0);
 		}
 		public BluetoothScannedDevice(BluetoothDevice device, int rssi) {
 			super(device.getAddress(), device.getName(), null, device);
@@ -41,6 +42,10 @@ public class BluetoothScanner implements Scanner {
 		}
 		public BluetoothDevice getBluetoothDevice() {
 			return (BluetoothDevice) getDevice();
+		}
+
+		public void setRssi(int rssi) {
+			this.rssi = rssi;
 		}
 
 		public int getRssi() {
@@ -51,7 +56,7 @@ public class BluetoothScanner implements Scanner {
 	private Context context;
 	private Handler handler;
 	private Listener listener;
-	private Map<BluetoothDevice, ScannedDevice> scannedDevices;
+	private Map<BluetoothDevice, BluetoothScannedDevice> scannedDevices;
 	private boolean finished = false;
 	private boolean receiverRegistered = false;
 
@@ -128,7 +133,8 @@ public class BluetoothScanner implements Scanner {
 			Log.d(LOG_TAG, "Bluetooth broadcast action received. action=" + action);
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				onDeviceFound(device);
+				int rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, (byte) 0);
+				onDeviceFound(device, rssi);
 			} else if (BluetoothDevice.ACTION_NAME_CHANGED.equals(action)) {
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				onDeviceNameChanged(device);
@@ -143,10 +149,11 @@ public class BluetoothScanner implements Scanner {
 		return device.getName() + " (" + device.getAddress() + ")";
 	}
 
-	private void onDeviceFound(final BluetoothDevice device) {
+	private void onDeviceFound(final BluetoothDevice device, int rssi) {
 		String deviceName = device.getName();
-		Log.i(LOG_TAG, "Bluetooth device is found. name=" + deviceName + ", address=" + device.getAddress());
-		ScannedDevice scannedDevice = addOrUpdateScannedDevice(device);
+		Log.i(LOG_TAG, "Bluetooth device is found. name=" + deviceName + ", address=" + device.getAddress() + ", rssi=" + rssi);
+		BluetoothScannedDevice scannedDevice = addOrUpdateScannedDevice(device);
+		scannedDevice.setRssi(rssi);
 		handler.post(() -> listener.onDeviceScanned(scannedDevice));
 	}
 
@@ -157,8 +164,8 @@ public class BluetoothScanner implements Scanner {
 		handler.post(() -> listener.onDeviceChanged(scannedDevice));
 	}
 
-	private ScannedDevice addOrUpdateScannedDevice(BluetoothDevice device) {
-		ScannedDevice scannedDevice = scannedDevices.get(device);
+	private BluetoothScannedDevice addOrUpdateScannedDevice(BluetoothDevice device) {
+		BluetoothScannedDevice scannedDevice = scannedDevices.get(device);
 		if (scannedDevice == null) {
 			scannedDevice = new BluetoothScannedDevice(device);
 			scannedDevices.put(device, scannedDevice);
