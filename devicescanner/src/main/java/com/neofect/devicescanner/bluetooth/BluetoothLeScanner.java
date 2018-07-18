@@ -109,7 +109,9 @@ public class BluetoothLeScanner implements Scanner {
 			Log.w(LOG_TAG, "stop: Already finished.");
 			return;
 		}
-		bleScanner.stopScan(scanCallback);
+		if (bleScanner != null) {
+			bleScanner.stopScan(scanCallback);
+		}
 		finish(null);
 	}
 

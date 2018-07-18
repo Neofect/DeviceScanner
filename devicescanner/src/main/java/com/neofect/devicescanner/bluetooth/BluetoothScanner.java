@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -79,7 +80,6 @@ public class BluetoothScanner implements Scanner {
 
 		registerReceiver();
 
-
 		BluetoothAdapter.getDefaultAdapter().startDiscovery();
 	}
 
@@ -130,13 +130,22 @@ public class BluetoothScanner implements Scanner {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
-			Log.d(LOG_TAG, "Bluetooth broadcast action received. action=" + action);
+			Log.d(LOG_TAG, "Bluetooth discovery action received. action=" + action);
+			BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+			// Device type
+			if (device != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+				int deviceType = device.getType();
+				if (deviceType != BluetoothDevice.DEVICE_TYPE_CLASSIC) {
+					Log.d(LOG_TAG, "Only accept classic bluetooth devices. Skip this type of device. deviceType=" + deviceType);
+					return;
+				}
+			}
+
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				int rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, (byte) 0);
 				onDeviceFound(device, rssi);
 			} else if (BluetoothDevice.ACTION_NAME_CHANGED.equals(action)) {
-				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				onDeviceNameChanged(device);
 			} else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
 				finish(null);

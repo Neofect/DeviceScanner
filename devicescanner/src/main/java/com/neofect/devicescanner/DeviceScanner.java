@@ -140,4 +140,8 @@ public class DeviceScanner {
 		}
 	}
 
+	public boolean addScanner(Scanner scanner) {
+		return scanners.add(scanner);
+	}
+
 }
