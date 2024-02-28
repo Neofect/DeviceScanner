@@ -1,14 +1,9 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.github.dcendents:android-maven-gradle-plugin:1.5'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
-    }
-}
+group = 'com.neofect.devicescanner'
+version = '1.1.2-SNAPSHOT'
+
 
 android {
     compileSdkVersion 24
@@ -21,17 +16,51 @@ android {
     }
 }
 
+repositories {
+    maven {
+        credentials {
+            username NEXUS_USERNAME
+            password NEXUS_PASSWORD
+        }
+        url NEXUS_SNAPSHOT_URL
+    }
+
+    maven {
+        credentials {
+            username NEXUS_USERNAME
+            password NEXUS_PASSWORD
+        }
+        url NEXUS_RELEASE_URL
+    }
+}
+
 dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.robolectric:robolectric:3.5.1'
 
     implementation 'com.android.support:support-annotations:27.1.1'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.1.1'
 }
-
-group = 'com.neofect.devicescanner'
-version = '1.1.2-SNAPSHOT'
 
 if (rootProject.name == 'DeviceScanner') {
     apply from: project.file('../gradle/bintray-upload.gradle')
+}
+
+if (rootProject.name == 'DeviceScanner') {
+    uploadArchives {
+        repositories {
+            apply plugin: 'maven'
+            mavenDeployer {
+                repository(url: NEXUS_RELEASE_URL) {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+                }
+                snapshotRepository(url: NEXUS_SNAPSHOT_URL) {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+                }
+            }
+        }
+    }
 }
