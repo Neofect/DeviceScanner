@@ -10,9 +10,13 @@ import android.util.Pair;
 
 import com.neofect.devicescanner.bluetooth.BluetoothLeScanner;
 import com.neofect.devicescanner.bluetooth.BluetoothScanner;
+import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceData;
+import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceScanner;
+import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceScannerDelegate;
 import com.neofect.devicescanner.usb.UsbScanner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -21,127 +25,141 @@ import java.util.List;
  */
 public class DeviceScanner {
 
-	private static final String LOG_TAG = "DeviceScanner";
+    private static final String LOG_TAG = "DeviceScanner";
 
-	public interface Listener {
-		void onDeviceScanned(ScannedDevice device);
-		void onDeviceChanged(ScannedDevice device);
-		void onExceptionRaised(Exception exception);
-		void onScanFinished();
-	}
+    public interface Listener {
+        void onDeviceScanned(ScannedDevice device);
 
-	public interface Scanner {
-		void start(Listener listener);
-		void stop();
-		boolean isFinished();
-	}
+        void onDeviceChanged(ScannedDevice device);
 
-	public static class Builder {
-		private Context context;
-		private Listener listener;
-		private List<Scanner> scanners = new ArrayList<>();
+        void onExceptionRaised(Exception exception);
 
-		public Builder(Context context) {
-			this.context = context.getApplicationContext();
-		}
+        void onScanFinished();
+    }
 
-		public Builder listen(Listener listener) {
-			this.listener = listener;
-			return this;
-		}
+    public interface Scanner {
+        void start(Listener listener);
 
-		public Builder addBluetooth() {
-			scanners.add(new BluetoothScanner(context));
-			return this;
-		}
+        void stop();
 
-		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-		public Builder addBluetoothLe() {
-			return addBluetoothLe(null, null);
-		}
+        boolean isFinished();
+    }
 
-		@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-		public Builder addBluetoothLe(List<ScanFilter> scanFilters, ScanSettings scanSettings) {
-			scanners.add(new BluetoothLeScanner(context, scanFilters, scanSettings));
-			return this;
-		}
+    public static class Builder {
+        private Context context;
+        private Listener listener;
+        private List<Scanner> scanners = new ArrayList<>();
 
-		public Builder addUsb(List<Pair<Integer, Integer>> supportedProducts) {
-			scanners.add(new UsbScanner(context, supportedProducts));
-			return this;
-		}
+        public Builder(Context context) {
+            this.context = context.getApplicationContext();
+        }
 
-		public DeviceScanner build() {
-			return new DeviceScanner(context, listener, new ArrayList<>(scanners));
-		}
+        public Builder listen(Listener listener) {
+            this.listener = listener;
+            return this;
+        }
 
-	}
+        public Builder addBluetooth() {
+            scanners.add(new BluetoothScanner(context));
+            return this;
+        }
 
-	private Context context;
-	private Listener listener;
-	private List<Scanner> scanners;
-	private boolean scanning = false;
+        public Builder addKnownBluetooth() {
+            scanners.add(new KnownBluetoothDeviceScanner((KnownBluetoothDeviceScannerDelegate) () -> {
+                // TODO: jhchoiSince2019 2/28/24
+                KnownBluetoothDeviceData[] array = {new KnownBluetoothDeviceData("B6:15:3B:9F:A4:02")};
+                return Arrays.asList(array);
+            }));
+            return this;
+        }
 
-	private DeviceScanner(Context context, Listener listener, List<Scanner> scanners) {
-		this.context = context;
-		this.listener = listener;
-		this.scanners = scanners;
-	}
+        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+        public Builder addBluetoothLe() {
+            return addBluetoothLe(null, null);
+        }
 
-	public boolean isScanning() {
-		return scanning;
-	}
+        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+        public Builder addBluetoothLe(List<ScanFilter> scanFilters, ScanSettings scanSettings) {
+            scanners.add(new BluetoothLeScanner(context, scanFilters, scanSettings));
+            return this;
+        }
 
-	public boolean start() {
-		if (scanning) {
-			Log.w(LOG_TAG, "start() Scanning is in progress. Need to call stop() first and wait for onScanFinished() event.");
-			return false;
-		} else if (listener == null) {
-			Log.e(LOG_TAG, "Listener is not set!");
-			return false;
-		}
-		scanning = true;
-		startScanners();
-		return true;
-	}
+        public Builder addUsb(List<Pair<Integer, Integer>> supportedProducts) {
+            scanners.add(new UsbScanner(context, supportedProducts));
+            return this;
+        }
 
-	public void stop() {
-		for (Scanner scanner : scanners) {
-			scanner.stop();
-		}
-	}
+        public DeviceScanner build() {
+            return new DeviceScanner(context, listener, new ArrayList<>(scanners));
+        }
 
-	private void startScanners() {
-		for (Scanner scanner : scanners) {
-			scanner.start(new Listener() {
-				public void onDeviceScanned(ScannedDevice device) {
-					listener.onDeviceScanned(device);
-				}
+    }
 
-				public void onDeviceChanged(ScannedDevice device) {
-					listener.onDeviceChanged(device);
-				}
+    private Context context;
+    private Listener listener;
+    private List<Scanner> scanners;
+    private boolean scanning = false;
 
-				public void onScanFinished() {
-					for (Scanner finishedScanner : scanners) {
-						if (!finishedScanner.isFinished()) {
-							return;
-						}
-					}
-					scanning = false;
-					listener.onScanFinished();
-				}
+    private DeviceScanner(Context context, Listener listener, List<Scanner> scanners) {
+        this.context = context;
+        this.listener = listener;
+        this.scanners = scanners;
+    }
 
-				@Override
-				public void onExceptionRaised(Exception exception) {
-					listener.onExceptionRaised(exception);
-				}
-			});
-		}
-	}
+    public boolean isScanning() {
+        return scanning;
+    }
 
-	public boolean addScanner(Scanner scanner) {
-		return scanners.add(scanner);
-	}
+    public boolean start() {
+        if (scanning) {
+            Log.w(LOG_TAG, "start() Scanning is in progress. Need to call stop() first and wait for onScanFinished() event.");
+            return false;
+        } else if (listener == null) {
+            Log.e(LOG_TAG, "Listener is not set!");
+            return false;
+        }
+        scanning = true;
+        startScanners();
+        return true;
+    }
+
+    public void stop() {
+        for (Scanner scanner : scanners) {
+            scanner.stop();
+        }
+    }
+
+    private void startScanners() {
+        for (Scanner scanner : scanners) {
+            scanner.start(new Listener() {
+                public void onDeviceScanned(ScannedDevice device) {
+                    listener.onDeviceScanned(device);
+                }
+
+                public void onDeviceChanged(ScannedDevice device) {
+                    listener.onDeviceChanged(device);
+                }
+
+                public void onScanFinished() {
+                    for (Scanner finishedScanner : scanners) {
+                        if (!finishedScanner.isFinished()) {
+                            return;
+                        }
+                    }
+                    scanning = false;
+                    listener.onScanFinished();
+                }
+
+                @Override
+                public void onExceptionRaised(Exception exception) {
+                    listener.onExceptionRaised(exception);
+                }
+            });
+        }
+    }
+
+    public boolean addScanner(Scanner scanner) {
+        return scanners.add(scanner);
+    }
 
 }
