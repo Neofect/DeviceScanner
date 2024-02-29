@@ -34,18 +34,18 @@ public class BluetoothLeScanner implements Scanner {
 	private static final int SCAN_DURATION = 3000;
 
 	public static class BluetoothLeScannedDevice extends ScannedDevice {
-		private ScanResult scanResult;
-		public BluetoothLeScannedDevice(String identifier, String name, String description, BluetoothDevice device, ScanResult scanResult) {
+//		private ScanResult scanResult;
+		public BluetoothLeScannedDevice(String identifier, String name, String description, BluetoothDevice device) {
 			super(identifier, name, description, device);
-			this.scanResult = scanResult;
+//			this.scanResult = scanResult;
 		}
 		public BluetoothDevice getBluetoothDevice() {
 			return (BluetoothDevice) getDevice();
 		}
 
-		public int getRssi() {
-			return scanResult.getRssi();
-		}
+//		public int getRssi() {
+//			return scanResult.getRssi();
+//		}
 	}
 
 	private Context context;
@@ -165,7 +165,7 @@ public class BluetoothLeScanner implements Scanner {
 
 		handler.post(() -> {
 			String description = deviceName + " (" + device.getAddress() + ")";
-			final ScannedDevice scannedDevice = new BluetoothLeScannedDevice(device.getAddress(), deviceName, description, device, scanResult);
+			final ScannedDevice scannedDevice = new BluetoothLeScannedDevice(device.getAddress(), deviceName, description, device);
 			listener.onDeviceScanned(scannedDevice);
 		});
 	}

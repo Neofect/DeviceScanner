@@ -12,11 +12,9 @@ import com.neofect.devicescanner.bluetooth.BluetoothLeScanner;
 import com.neofect.devicescanner.bluetooth.BluetoothScanner;
 import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceData;
 import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceScanner;
-import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceScannerDelegate;
 import com.neofect.devicescanner.usb.UsbScanner;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -64,12 +62,8 @@ public class DeviceScanner {
             return this;
         }
 
-        public Builder addKnownBluetooth() {
-            scanners.add(new KnownBluetoothDeviceScanner((KnownBluetoothDeviceScannerDelegate) () -> {
-                // TODO: jhchoiSince2019 2/28/24
-                KnownBluetoothDeviceData[] array = {new KnownBluetoothDeviceData("B6:15:3B:9F:A4:02")};
-                return Arrays.asList(array);
-            }));
+        public Builder addKnownBluetooth(List<KnownBluetoothDeviceData> knownDeviceDataList) {
+            scanners.add(new KnownBluetoothDeviceScanner(knownDeviceDataList));
             return this;
         }
 
@@ -141,17 +135,22 @@ public class DeviceScanner {
                 }
 
                 public void onScanFinished() {
+                    Log.d(LOG_TAG, "onScanFinished check all finish...");
                     for (Scanner finishedScanner : scanners) {
                         if (!finishedScanner.isFinished()) {
+                            String scannerText = finishedScanner.toString();
+                            Log.d(LOG_TAG, "onScanFinished not finish scanner. " + scannerText);
                             return;
                         }
                     }
+                    Log.w(LOG_TAG, "onScanFinished all.");
                     scanning = false;
                     listener.onScanFinished();
                 }
 
                 @Override
                 public void onExceptionRaised(Exception exception) {
+                    Log.w(LOG_TAG, "onExceptionRaised. e: " + exception.getMessage());
                     listener.onExceptionRaised(exception);
                 }
             });
