@@ -3,8 +3,8 @@ package com.neofect.devicescanner.bluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.os.Build
-import android.support.annotation.RequiresApi
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.neofect.devicescanner.DeviceScanner
 import com.neofect.devicescanner.DeviceScanner.Scanner
 import com.neofect.devicescanner.bluetooth.BluetoothLeScanner.BluetoothLeScannedDevice
@@ -76,7 +76,7 @@ class KnownBluetoothDeviceScanner(
         scanJob = null
     }
 
-    override fun isFinished(): Boolean {
-        return scanJob?.isActive != true
-    }
+    override val isFinished: Boolean
+        get() = scanJob?.isActive != true
+
 }
