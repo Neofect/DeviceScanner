@@ -1,7 +1,6 @@
 package com.neofect.devicescanner.bluetooth
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -44,8 +43,8 @@ class KnownBluetoothDeviceScanner(
                     val device =
                         BluetoothAdapter.getDefaultAdapter()
                             .getRemoteDevice(knownDeviceInfo.macAddress)
-                    val deviceName = device.name
-                    Log.d(LOG_TAG, "bluetooth device found. name: $deviceName")
+                    val deviceName = device.name ?: continue
+                    Log.d(LOG_TAG, "bluetooth device found. name: $deviceName, address: ${device.address}, $device")
 
                     withContext(Dispatchers.Main) {
                         val description = deviceName + " (" + device.address + ")"
