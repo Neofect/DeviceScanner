@@ -4,9 +4,11 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
+import android.os.ParcelUuid
 import android.util.Log
 import android.util.Pair
 import androidx.annotation.RequiresApi
+import com.neofect.devicescanner.bluetooth.BluetoothCombinedScanner
 import com.neofect.devicescanner.bluetooth.BluetoothLeScanner
 import com.neofect.devicescanner.bluetooth.BluetoothScanner
 import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceData
@@ -72,6 +74,25 @@ class DeviceScanner private constructor(
                     context = context,
                     scanFilters = scanFilters,
                     scanSettings = scanSettings
+                )
+            )
+            return this
+        }
+
+        fun addBluetoothCombine(
+            uuid: ParcelUuid
+        ): Builder {
+            val bleScanner = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                BluetoothLeScanner(
+                    context = context,
+                    scanFilters = listOf(ScanFilter.Builder().setServiceUuid(uuid).build()),
+                    scanSettings = null
+                )
+            } else null
+            scanners.add(
+                BluetoothCombinedScanner(
+                    bluetoothScanner = BluetoothScanner(context = context),
+                    bleScanner = bleScanner
                 )
             )
             return this
