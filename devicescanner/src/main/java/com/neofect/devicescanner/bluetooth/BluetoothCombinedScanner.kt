@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,6 +32,7 @@ class BluetoothCombinedScanner(
     private var scanListener: DeviceScanner.Listener? = null
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Log.e(LOG_TAG, "Exception raised", throwable)
+        stopScanners()
         scanListener?.onExceptionRaised(Exception("BluetoothCombinedScanner", throwable))
 //        scanListener?.onScanFinished()
     }
@@ -46,6 +48,7 @@ class BluetoothCombinedScanner(
                     continuation.resume(Unit)
                     return@suspendCancellableCoroutine
                 }
+                Log.d(LOG_TAG, "ble scan start")
                 bleScanner.start(object : DeviceScanner.Listener {
                     override fun onDeviceScanned(device: ScannedDevice) {
                         scanListener?.onDeviceScanned(device)
@@ -65,6 +68,9 @@ class BluetoothCombinedScanner(
                 })
             }
 
+            delay(1000)
+
+            Log.d(LOG_TAG, "bt scan start")
             suspendCancellableCoroutine<Any> { continuation ->
                 bluetoothScanner.start(object : DeviceScanner.Listener {
                     override fun onDeviceScanned(device: ScannedDevice) {
@@ -86,12 +92,22 @@ class BluetoothCombinedScanner(
             }
 
             scanListener?.onScanFinished()
+
+            stopScanners()
         }
+    }
+
+    private fun stopScanners() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            bleScanner?.stop()
+        }
+        bluetoothScanner.stop()
     }
 
     @Synchronized
     override fun stop() {
         runBlocking { scanJob?.cancelAndJoin() }
+        stopScanners()
         scanJob = null
     }
 

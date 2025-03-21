@@ -37,6 +37,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
     private var receiverRegistered = false
 
     override fun start(listener: DeviceScanner.Listener?) {
+        Log.i(LOG_TAG, "start")
         this.listener = listener
         isFinished = false
         scannedDevices = LinkedHashMap()
@@ -53,6 +54,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
     }
 
     override fun stop() {
+        Log.i(LOG_TAG, "stop")
         val adapter = BluetoothAdapter.getDefaultAdapter()
         if (adapter != null && adapter.isDiscovering) {
             adapter.cancelDiscovery()
@@ -63,6 +65,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
 
     private fun finish(exception: Exception?) {
         if (receiverRegistered) {
+            Log.i(LOG_TAG, "discovery receiver removed")
             context.unregisterReceiver(discoveryReceiver)
             receiverRegistered = false
         }
@@ -87,12 +90,14 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
             Log.w(LOG_TAG, "registerReceiver: Already registered.")
             return
         }
+
         // Register a receiver for broadcasts
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         context.registerReceiver(discoveryReceiver, filter)
+        Log.i(LOG_TAG, "discovery receiver registered")
         receiverRegistered = true
     }
 
