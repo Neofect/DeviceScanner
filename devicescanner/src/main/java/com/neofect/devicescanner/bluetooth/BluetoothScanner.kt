@@ -13,6 +13,7 @@ import android.os.Looper
 import android.util.Log
 import com.neofect.devicescanner.DeviceScanner
 import com.neofect.devicescanner.ScannedDevice
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * @author neo.kim@neofect.com
@@ -95,13 +96,17 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED)
+        filter.addAction(BluetoothDevice.ACTION_UUID)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         context.registerReceiver(discoveryReceiver, filter)
+
         Log.i(LOG_TAG, "discovery receiver registered")
         receiverRegistered = true
     }
 
     private val discoveryReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        private val fetchUuidsCountMap = ConcurrentHashMap<String, Int>()
+
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
             Log.d(LOG_TAG, "Bluetooth discovery action received. action=$action")
@@ -119,17 +124,68 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
                 }
             }
 
-            if (BluetoothDevice.ACTION_FOUND == action) {
-                val rssi = intent.getShortExtra(
-                    BluetoothDevice.EXTRA_RSSI, 0.toByte()
-                        .toShort()
-                ).toInt()
-                onDeviceFound(device, rssi)
-            } else if (BluetoothDevice.ACTION_NAME_CHANGED == action) {
-                onDeviceNameChanged(device)
-            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED == action) {
-                finish(null)
+            when (action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val rssi = intent.getShortExtra(
+                        BluetoothDevice.EXTRA_RSSI, 0.toByte().toShort()
+                    ).toInt()
+                    Log.d(
+                        LOG_TAG,
+                        "Bluetooth device is found. deviceName=${device.name}, deviceAddr=${device.address}, rssi=$rssi"
+                    )
+                    if (device.name == null && rssi > -50) {
+                        clearFetchUuidsCount(device.address)
+                        device.fetchUuidsWithSdp()
+                    }
+                    onDeviceFound(device, rssi)
+                }
+
+                BluetoothDevice.ACTION_UUID -> {
+                    Log.d(
+                        LOG_TAG,
+                        "UUID received. deviceName=${device.name}, deviceAddr=${device.address}"
+                    )
+                    if (device.name != null) {
+                        onDeviceNameChanged(device)
+                    } else {
+                        if (getFetchUuidCount(device.address) < 10) {
+                            //10회까지만 재시도.
+                            device.fetchUuidsWithSdp()
+                            increaseFetchUuidCount(device.address)
+                        }
+                    }
+                }
+
+                BluetoothDevice.ACTION_NAME_CHANGED -> {
+                    Log.d(
+                        LOG_TAG,
+                        "Bluetooth device name changed. deviceName=${device.name}, deviceAddr=${device.address}"
+                    )
+                    onDeviceNameChanged(device)
+                }
+
+
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    Log.d(LOG_TAG, "Bluetooth discovery finished")
+                    finish(null)
+                }
             }
+        }
+
+        private fun getFetchUuidCount(address: String?): Int {
+            address ?: return 0
+            return fetchUuidsCountMap[address] ?: 0
+        }
+
+
+        private fun increaseFetchUuidCount(address: String?) {
+            address ?: return
+            fetchUuidsCountMap[address] = fetchUuidsCountMap[address]?.plus(1) ?: 1
+        }
+
+        private fun clearFetchUuidsCount(address: String?) {
+            address ?: return
+            fetchUuidsCountMap[address] = 0
         }
     }
 
