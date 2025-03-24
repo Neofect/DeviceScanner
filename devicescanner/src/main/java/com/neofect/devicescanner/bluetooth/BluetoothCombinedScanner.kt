@@ -43,57 +43,65 @@ class BluetoothCombinedScanner(
         scanListener = listener
         runBlocking { scanJob?.cancelAndJoin() }
         scanJob = scope.launch {
-            suspendCancellableCoroutine<Any> { continuation ->
-                if (bleScanner == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                    continuation.resume(Unit)
-                    return@suspendCancellableCoroutine
-                }
-                Log.d(LOG_TAG, "ble scan start")
-                bleScanner.start(object : DeviceScanner.Listener {
-                    override fun onDeviceScanned(device: ScannedDevice) {
-                        scanListener?.onDeviceScanned(device)
-                    }
 
-                    override fun onDeviceChanged(device: ScannedDevice) {
-                        scanListener?.onDeviceChanged(device)
-                    }
-
-                    override fun onExceptionRaised(exception: Exception) {
-                        continuation.resumeWithException(exception)
-                    }
-
-                    override fun onScanFinished() {
-                        continuation.resume(Unit)
-                    }
-                })
-            }
-
+            startBleScan(scanListener)
             delay(1000)
-
-            Log.d(LOG_TAG, "bt scan start")
-            suspendCancellableCoroutine<Any> { continuation ->
-                bluetoothScanner.start(object : DeviceScanner.Listener {
-                    override fun onDeviceScanned(device: ScannedDevice) {
-                        scanListener?.onDeviceScanned(device)
-                    }
-
-                    override fun onDeviceChanged(device: ScannedDevice) {
-                        scanListener?.onDeviceChanged(device)
-                    }
-
-                    override fun onExceptionRaised(exception: Exception) {
-                        continuation.resumeWithException(exception)
-                    }
-
-                    override fun onScanFinished() {
-                        continuation.resume(Unit)
-                    }
-                })
-            }
+            startBtScan(scanListener)
 
             scanListener?.onScanFinished()
-
             stopScanners()
+        }
+    }
+
+    private suspend fun startBtScan(scanListener: DeviceScanner.Listener?) {
+        Log.d(LOG_TAG, "bt scan start")
+        suspendCancellableCoroutine<Any> { continuation ->
+            bluetoothScanner.start(object : DeviceScanner.Listener {
+                override fun onDeviceScanned(device: ScannedDevice) {
+                    Log.i(LOG_TAG, "bt device scanned - deviceName: ${device.name}, identifier: ${device.identifier}")
+                    scanListener?.onDeviceScanned(device)
+                }
+
+                override fun onDeviceChanged(device: ScannedDevice) {
+                    scanListener?.onDeviceChanged(device)
+                }
+
+                override fun onExceptionRaised(exception: Exception) {
+                    continuation.resumeWithException(exception)
+                }
+
+                override fun onScanFinished() {
+                    continuation.resume(Unit)
+                }
+            })
+        }
+    }
+
+    private suspend fun startBleScan(scanListener: DeviceScanner.Listener?) {
+        suspendCancellableCoroutine<Any> { continuation ->
+            if (bleScanner == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                continuation.resume(Unit)
+                return@suspendCancellableCoroutine
+            }
+            Log.d(LOG_TAG, "ble scan start")
+            bleScanner.start(object : DeviceScanner.Listener {
+                override fun onDeviceScanned(device: ScannedDevice) {
+                    Log.i(LOG_TAG, "ble device scanned - deviceName: ${device.name}, identifier: ${device.identifier}")
+                    scanListener?.onDeviceScanned(device)
+                }
+
+                override fun onDeviceChanged(device: ScannedDevice) {
+                    scanListener?.onDeviceChanged(device)
+                }
+
+                override fun onExceptionRaised(exception: Exception) {
+                    continuation.resumeWithException(exception)
+                }
+
+                override fun onScanFinished() {
+                    continuation.resume(Unit)
+                }
+            })
         }
     }
 
