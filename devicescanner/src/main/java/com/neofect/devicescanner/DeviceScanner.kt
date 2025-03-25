@@ -11,7 +11,6 @@ import androidx.annotation.RequiresApi
 import com.neofect.devicescanner.bluetooth.BluetoothCombinedScanner
 import com.neofect.devicescanner.bluetooth.BluetoothLeScanner
 import com.neofect.devicescanner.bluetooth.BluetoothScanner
-import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceData
 import com.neofect.devicescanner.bluetooth.KnownBluetoothDeviceScanner
 import com.neofect.devicescanner.usb.UsbScanner
 
@@ -57,11 +56,6 @@ class DeviceScanner private constructor(
             return this
         }
 
-        fun addKnownBluetooth(knownDeviceDataList: List<KnownBluetoothDeviceData>): Builder {
-            scanners.add(KnownBluetoothDeviceScanner(knownDeviceDataList))
-            return this
-        }
-
         @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
         fun addBluetoothLe(): Builder {
             return addBluetoothLe(null, null)
@@ -82,13 +76,19 @@ class DeviceScanner private constructor(
         fun addBluetoothCombine(
             uuid: ParcelUuid
         ): Builder {
-            val bleScanner = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                BluetoothLeScanner(
+            val bleScanner: BluetoothLeScanner?
+            val knownBluetoothDeviceScanner: KnownBluetoothDeviceScanner?
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                bleScanner = BluetoothLeScanner(
                     context = context,
                     scanFilters = listOf(ScanFilter.Builder().setServiceUuid(uuid).build()),
                     scanSettings = null
                 )
-            } else null
+                knownBluetoothDeviceScanner = KnownBluetoothDeviceScanner(context)
+            } else {
+                bleScanner = null
+                knownBluetoothDeviceScanner = null
+            }
             scanners.add(
                 BluetoothCombinedScanner(
                     bluetoothScanner = BluetoothScanner(context = context),
