@@ -1,6 +1,8 @@
 package com.neofect.devicescanner.bluetooth
 
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.neofect.devicescanner.DeviceScanner
 import com.neofect.devicescanner.ScannedDevice
@@ -29,32 +31,34 @@ class BluetoothCombinedScanner(
         private const val LOG_TAG = "BTCombineScanner"
     }
 
+    private val handler = Handler(Looper.getMainLooper())
     private var scanListener: DeviceScanner.Listener? = null
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Log.e(LOG_TAG, "Exception raised", throwable)
-        stopScanners()
         scanListener?.onExceptionRaised(Exception("BluetoothCombinedScanner", throwable))
-//        scanListener?.onScanFinished()
+        stopScanners()
     }
-    private val scope = CoroutineScope(Dispatchers.Default + exceptionHandler)
+    private var scanJob: Job? = null
+
+    override var isFinished: Boolean = true
+        private set
 
     @Synchronized
     override fun start(listener: DeviceScanner.Listener?) {
+        isFinished = false
         scanListener = listener
         runBlocking { scanJob?.cancelAndJoin() }
-        scanJob = scope.launch {
-
+        scanJob = CoroutineScope(Dispatchers.Default + exceptionHandler).launch {
             startBleScan(scanListener)
             delay(1000)
 
             //android 10부터 bt spp는 2회 이상 호출시 device name을 리턴한다.
             for (btScanCount in 0 until 10) {
                 val unknownNearBtDevices = startBtScan(scanListener)
-                if(unknownNearBtDevices.isEmpty()) break
+                if (unknownNearBtDevices.isEmpty()) break
                 delay(1000)
             }
 
-            scanListener?.onScanFinished()
             stopScanners()
         }
     }
@@ -74,7 +78,10 @@ class BluetoothCombinedScanner(
 
                     if (device is BluetoothScanner.BluetoothScannedDevice) {
                         if (device.rssi > -50 && device.name == null) {
-                            Log.i(LOG_TAG, "unknown near bt device - deviceName: ${device.name}, identifier: ${device.identifier}")
+                            Log.i(
+                                LOG_TAG,
+                                "unknown near bt device - deviceName: ${device.name}, identifier: ${device.identifier}"
+                            )
                             unknownNearDevices.add(device.bluetoothDevice.address)
                         }
                     }
@@ -130,13 +137,6 @@ class BluetoothCombinedScanner(
         }
     }
 
-    private fun stopScanners() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            bleScanner?.stop()
-        }
-        bluetoothScanner.stop()
-    }
-
     @Synchronized
     override fun stop() {
         runBlocking { scanJob?.cancelAndJoin() }
@@ -144,8 +144,12 @@ class BluetoothCombinedScanner(
         scanJob = null
     }
 
-    private var scanJob: Job? = null
-    override val isFinished: Boolean
-        get() = scanJob?.isActive != true
-
+    private fun stopScanners() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            bleScanner?.stop()
+        }
+        bluetoothScanner.stop()
+        isFinished = true
+        scanListener?.onScanFinished()
+    }
 }
