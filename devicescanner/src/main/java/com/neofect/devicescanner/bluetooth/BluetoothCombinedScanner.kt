@@ -46,24 +46,44 @@ class BluetoothCombinedScanner(
 
             startBleScan(scanListener)
             delay(1000)
-            startBtScan(scanListener)
+
+            //android 10부터 bt spp는 2회 이상 호출시 device name을 리턴한다.
+            for (btScanCount in 0 until 10) {
+                val unknownNearBtDevices = startBtScan(scanListener)
+                if(unknownNearBtDevices.isEmpty()) break
+                delay(1000)
+            }
 
             scanListener?.onScanFinished()
             stopScanners()
         }
     }
 
-    private suspend fun startBtScan(scanListener: DeviceScanner.Listener?) {
+    private suspend fun startBtScan(scanListener: DeviceScanner.Listener?): Set<String> {
         Log.d(LOG_TAG, "bt scan start")
-        suspendCancellableCoroutine<Any> { continuation ->
+
+        val unknownDevices = suspendCancellableCoroutine<Set<String>> { continuation ->
+            val unknownNearDevices = mutableSetOf<String>()
             bluetoothScanner.start(object : DeviceScanner.Listener {
                 override fun onDeviceScanned(device: ScannedDevice) {
-                    Log.i(LOG_TAG, "bt device scanned - deviceName: ${device.name}, identifier: ${device.identifier}")
+                    Log.i(
+                        LOG_TAG,
+                        "bt device scanned - deviceName: ${device.name}, identifier: ${device.identifier}"
+                    )
                     scanListener?.onDeviceScanned(device)
+
+                    if (device is BluetoothScanner.BluetoothScannedDevice) {
+                        if (device.rssi > -50 && device.name == null) {
+                            unknownNearDevices.add(device.bluetoothDevice.address)
+                        }
+                    }
                 }
 
                 override fun onDeviceChanged(device: ScannedDevice) {
                     scanListener?.onDeviceChanged(device)
+                    if (device.name != null) {
+                        unknownNearDevices.remove(device.identifier)
+                    }
                 }
 
                 override fun onExceptionRaised(exception: Exception) {
@@ -71,10 +91,11 @@ class BluetoothCombinedScanner(
                 }
 
                 override fun onScanFinished() {
-                    continuation.resume(Unit)
+                    continuation.resume(unknownNearDevices)
                 }
             })
         }
+        return unknownDevices
     }
 
     private suspend fun startBleScan(scanListener: DeviceScanner.Listener?) {
@@ -86,7 +107,10 @@ class BluetoothCombinedScanner(
             Log.d(LOG_TAG, "ble scan start")
             bleScanner.start(object : DeviceScanner.Listener {
                 override fun onDeviceScanned(device: ScannedDevice) {
-                    Log.i(LOG_TAG, "ble device scanned - deviceName: ${device.name}, identifier: ${device.identifier}")
+                    Log.i(
+                        LOG_TAG,
+                        "ble device scanned - deviceName: ${device.name}, identifier: ${device.identifier}"
+                    )
                     scanListener?.onDeviceScanned(device)
                 }
 
