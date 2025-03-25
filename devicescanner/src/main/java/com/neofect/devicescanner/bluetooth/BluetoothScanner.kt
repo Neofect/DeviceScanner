@@ -104,11 +104,8 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
 
     private val discoveryReceiver: BroadcastReceiver = object : BroadcastReceiver() {
 
-        private val unknownNearDeviceMacAddrs = mutableListOf<String>()
-
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
-            Log.d(LOG_TAG, "Bluetooth discovery action received. action=$action")
             val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
 
             // Device type
@@ -128,7 +125,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
                     val rssi = intent.getShortExtra(
                         BluetoothDevice.EXTRA_RSSI, 0.toByte().toShort()
                     ).toInt()
-                    Log.d(
+                    Log.i(
                         LOG_TAG,
                         "Bluetooth device is found. deviceName=${device.name}, deviceAddr=${device.address}, rssi=$rssi"
                     )
@@ -137,7 +134,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
 
 
                 BluetoothDevice.ACTION_NAME_CHANGED -> {
-                    Log.d(
+                    Log.i(
                         LOG_TAG,
                         "Bluetooth device name changed. deviceName=${device.name}, deviceAddr=${device.address}"
                     )
@@ -146,7 +143,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
 
 
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                    Log.d(LOG_TAG, "Bluetooth discovery finished")
+                    Log.i(LOG_TAG, "Bluetooth discovery finished")
                     finish(null)
                 }
             }

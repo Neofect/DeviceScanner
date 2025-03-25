@@ -60,7 +60,7 @@ class BluetoothCombinedScanner(
     }
 
     private suspend fun startBtScan(scanListener: DeviceScanner.Listener?): Set<String> {
-        Log.d(LOG_TAG, "bt scan start")
+        Log.i(LOG_TAG, "bt scan start")
 
         val unknownDevices = suspendCancellableCoroutine<Set<String>> { continuation ->
             val unknownNearDevices = mutableSetOf<String>()
@@ -74,6 +74,7 @@ class BluetoothCombinedScanner(
 
                     if (device is BluetoothScanner.BluetoothScannedDevice) {
                         if (device.rssi > -50 && device.name == null) {
+                            Log.i(LOG_TAG, "unknown near bt device - deviceName: ${device.name}, identifier: ${device.identifier}")
                             unknownNearDevices.add(device.bluetoothDevice.address)
                         }
                     }
