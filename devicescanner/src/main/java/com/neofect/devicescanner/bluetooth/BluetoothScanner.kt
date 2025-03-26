@@ -37,6 +37,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
     private var receiverRegistered = false
 
     override fun start(listener: DeviceScanner.Listener?) {
+        Log.i(LOG_TAG, "start")
         this.listener = listener
         isFinished = false
         scannedDevices = LinkedHashMap()
@@ -53,6 +54,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
     }
 
     override fun stop() {
+        Log.i(LOG_TAG, "stop")
         val adapter = BluetoothAdapter.getDefaultAdapter()
         if (adapter != null && adapter.isDiscovering) {
             adapter.cancelDiscovery()
@@ -63,6 +65,7 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
 
     private fun finish(exception: Exception?) {
         if (receiverRegistered) {
+            Log.i(LOG_TAG, "discovery receiver removed")
             context.unregisterReceiver(discoveryReceiver)
             receiverRegistered = false
         }
@@ -87,19 +90,22 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
             Log.w(LOG_TAG, "registerReceiver: Already registered.")
             return
         }
+
         // Register a receiver for broadcasts
         val filter = IntentFilter()
         filter.addAction(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothDevice.ACTION_NAME_CHANGED)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         context.registerReceiver(discoveryReceiver, filter)
+
+        Log.i(LOG_TAG, "discovery receiver registered")
         receiverRegistered = true
     }
 
     private val discoveryReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
-            Log.d(LOG_TAG, "Bluetooth discovery action received. action=$action")
             val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
 
             // Device type
@@ -114,16 +120,32 @@ class BluetoothScanner(context: Context) : DeviceScanner.Scanner {
                 }
             }
 
-            if (BluetoothDevice.ACTION_FOUND == action) {
-                val rssi = intent.getShortExtra(
-                    BluetoothDevice.EXTRA_RSSI, 0.toByte()
-                        .toShort()
-                ).toInt()
-                onDeviceFound(device, rssi)
-            } else if (BluetoothDevice.ACTION_NAME_CHANGED == action) {
-                onDeviceNameChanged(device)
-            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED == action) {
-                finish(null)
+            when (action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val rssi = intent.getShortExtra(
+                        BluetoothDevice.EXTRA_RSSI, 0.toByte().toShort()
+                    ).toInt()
+                    Log.i(
+                        LOG_TAG,
+                        "Bluetooth device is found. deviceName=${device.name}, deviceAddr=${device.address}, rssi=$rssi"
+                    )
+                    onDeviceFound(device, rssi)
+                }
+
+
+                BluetoothDevice.ACTION_NAME_CHANGED -> {
+                    Log.i(
+                        LOG_TAG,
+                        "Bluetooth device name changed. deviceName=${device.name}, deviceAddr=${device.address}"
+                    )
+                    onDeviceNameChanged(device)
+                }
+
+
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    Log.i(LOG_TAG, "Bluetooth discovery finished")
+                    finish(null)
+                }
             }
         }
     }
