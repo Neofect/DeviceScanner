@@ -95,11 +95,14 @@ class BluetoothCombinedScanner(
                 }
 
                 override fun onExceptionRaised(exception: Exception) {
-                    continuation.resumeWithException(exception)
+                    if (continuation.isActive)
+                        continuation.resumeWithException(exception)
                 }
 
                 override fun onScanFinished() {
-                    continuation.resume(unknownNearDevices)
+                    if(continuation.isActive) {
+                        continuation.resume(unknownNearDevices)
+                    }
                 }
             })
         }
@@ -127,11 +130,13 @@ class BluetoothCombinedScanner(
                 }
 
                 override fun onExceptionRaised(exception: Exception) {
-                    continuation.resumeWithException(exception)
+                    if (continuation.isActive)
+                        continuation.resumeWithException(exception)
                 }
 
                 override fun onScanFinished() {
-                    continuation.resume(Unit)
+                    if (continuation.isActive)
+                        continuation.resume(Unit)
                 }
             })
         }
